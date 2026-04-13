@@ -1,6 +1,8 @@
 const std = @import("std");
+const Reed = @import("Reed.zig");
 
 pub fn main() !void {
-    // Prints to stderr, ignoring potential errors.
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    std.debug.print("Initialising Reed\n", .{});
+    var reed = try Reed.init();
+    defer reed.deinit();
 }
