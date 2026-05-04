@@ -11,7 +11,7 @@ const ReedError = error{
 };
 
 exit: bool = false,
-gpa: std.mem.Allocator,
+allocator: std.mem.Allocator,
 display: *wl.Display,
 registry: *wl.Registry,
 window_manager: ?*river.WindowManagerV1 = null,
@@ -20,40 +20,33 @@ layer_shell: ?*river.LayerShellV1 = null,
 seat: ?*river.SeatV1 = null,
 key_bindings: []*river.XkbBindingV1 = undefined,
 
-pub fn init(gpa: std.mem.Allocator) !Reed {
+pub fn init(allocator: std.mem.Allocator) !*Reed {
+    const reed = try allocator.create(Reed);
     const display = try wl.Display.connect(null);
     const registry = try display.getRegistry();
 
-    return Reed{
-        .gpa = gpa,
+    reed.* = .{
+        .allocator = allocator,
         .display = display,
         .registry = registry,
     };
-}
 
-pub fn register(reed: *Reed) !void {
     reed.registry.setListener(*Reed, registryListener, reed);
-    if (reed.display.roundtrip() != .SUCCESS) return error.RoundtripFailed;
 
-    const window_manager = reed.window_manager orelse {
-        std.debug.print("Failed to find window manager\n", .{}); //TODO move this elsewhere
-        return ReedError.WindowManagerNotFound;
-    };
-    window_manager.setListener(*Reed, windowManagerListener, reed);
+    return reed;
 }
 
 pub fn deinit(reed: *Reed) void {
-    reed.gpa.free(reed.key_bindings);
+    reed.allocator.free(reed.key_bindings);
     if (reed.layer_shell) |layer_shell| layer_shell.destroy();
     if (reed.xkb_bindings) |xkb_bindings| xkb_bindings.destroy();
     if (reed.window_manager) |window_manager| {
-        // window_manager.exitSession();
-        window_manager.stop();
+        window_manager.exitSession();
         window_manager.destroy();
     }
     reed.registry.destroy();
-    _ = reed.display.flush(); // flush destroy requests
     reed.display.disconnect();
+    reed.allocator.destroy(reed);
 }
 
 pub fn run(reed: *Reed) void {
@@ -80,8 +73,9 @@ fn registryListener(registry: *wl.Registry, event: wl.Registry.Event, reed: *Ree
             const interface_name = std.mem.span(global.interface);
             if (std.mem.eql(u8, interface_name, "river_window_manager_v1")) {
                 std.debug.print("Registering {s} {d}\n", .{ interface_name, global.version });
-                reed.window_manager =
-                    registry.bind(global.name, river.WindowManagerV1, 4) catch null;
+                const window_manager = registry.bind(global.name, river.WindowManagerV1, 4) catch return;
+                window_manager.setListener(*Reed, windowManagerListener, reed);
+                reed.window_manager = window_manager;
             } else if (std.mem.eql(u8, interface_name, "river_xkb_bindings_v1")) {
                 std.debug.print("Registering {s} {d}\n", .{ interface_name, global.version });
                 reed.xkb_bindings =
@@ -169,8 +163,8 @@ fn initKeyBindings(reed: *Reed) !void {
         return;
     };
 
-    try keys.append(reed.gpa, xkb_binding);
-    reed.key_bindings = try keys.toOwnedSlice(reed.gpa);
+    try keys.append(reed.allocator, xkb_binding);
+    reed.key_bindings = try keys.toOwnedSlice(reed.allocator);
 
     xkb_binding.setListener(*Reed, xkbBindingListener, reed);
     xkb_binding.enable();
