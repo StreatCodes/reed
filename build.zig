@@ -27,8 +27,9 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addImport("wayland", wayland);
-    exe.linkLibC();
-    exe.linkSystemLibrary("wayland-client");
+    exe.root_module.linkSystemLibrary("wayland-client", .{});
+
+    exe.use_llvm = true; //Temporary due to Arch glibc issue.
 
     b.installArtifact(exe);
 
