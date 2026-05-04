@@ -3,12 +3,9 @@ const wayland = @import("wayland");
 const river = wayland.client.river;
 const wl = wayland.client.wl;
 const Instance = @import("Instance.zig");
+const actions = @import("actions.zig");
 
-pub fn seatListener(
-    _: *river.SeatV1,
-    event: river.SeatV1.Event,
-    instance: *Instance,
-) void {
+pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Instance) void {
     _ = instance;
     switch (event) {
         .window_interaction => |interaction| {
@@ -20,30 +17,50 @@ pub fn seatListener(
     }
 }
 
+const KeyBindings = struct {
+    keysym: u32,
+    action: actions.Action,
+};
+
+// Temporary hard coded bindings
+const bindings = [_]KeyBindings{
+    .{
+        .action = .open,
+        .keysym = 0x0020, //Space
+    },
+    .{
+        .action = .close,
+        .keysym = 0x0030, //0
+    },
+};
+
+const BindingMap = struct {
+    instance: *Instance,
+    action: actions.Action,
+};
+
 pub fn initKeyBindings(instance: *Instance) !void {
     const xkb_bindings = instance.xkb_bindings orelse {
         std.debug.print("Failed to find xkb bindings\n", .{});
         return;
     };
 
-    // TODO This is dumb, redo
-    var keys: std.ArrayList(*river.XkbBindingV1) = .empty;
+    for (bindings) |binding| {
+        std.debug.print("Registering binding {x} {any}\n", .{ binding.keysym, binding.action });
+        const xkb_binding = xkb_bindings.getXkbBinding(
+            instance.seat.?,
+            binding.keysym,
+            .{},
+        ) catch |err| {
+            std.debug.print("Failed to register binding ({}): {}\n", .{ binding, err });
+            return;
+        };
 
-    // 0x0020 Spacebar
-    const xkb_binding = xkb_bindings.getXkbBinding(
-        instance.seat.?,
-        0x0020,
-        .{},
-    ) catch |err| {
-        std.debug.print("Failed to get xkb binding: {}\n", .{err});
-        return;
-    };
+        try instance.actionMap.put(xkb_binding.getId(), binding.action);
 
-    try keys.append(instance.allocator, xkb_binding);
-    instance.key_bindings = try keys.toOwnedSlice(instance.allocator);
-
-    xkb_binding.setListener(*Instance, xkbBindingListener, instance);
-    xkb_binding.enable();
+        xkb_binding.setListener(*Instance, xkbBindingListener, instance);
+        xkb_binding.enable();
+    }
 }
 
 fn xkbBindingListener(
@@ -53,14 +70,14 @@ fn xkbBindingListener(
 ) void {
     switch (event) {
         .pressed => {
-            std.debug.print("Key pressed {d}\n", .{xkb_binding.getId()});
-            handleKeyPressed(instance);
+            std.debug.print("Key pressed {x}\n", .{xkb_binding.getId()});
+            const action = instance.actionMap.get(xkb_binding.getId()) orelse {
+                std.debug.print("Unknown binding {d}\n", .{xkb_binding.getId()});
+                return;
+            };
+
+            actions.execAction(instance, action);
         },
         else => {},
     }
-}
-
-pub fn handleKeyPressed(instance: *Instance) void {
-    std.debug.print("Exiting\n", .{});
-    instance.exit = true;
 }

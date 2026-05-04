@@ -1,6 +1,7 @@
 const std = @import("std");
 const wayland = @import("wayland");
 const input = @import("input.zig");
+const actions = @import("actions.zig");
 const river = wayland.client.river;
 const wl = wayland.client.wl;
 
@@ -11,6 +12,7 @@ const InstanceError = error{
 };
 
 exit: bool = false,
+io: std.Io,
 allocator: std.mem.Allocator,
 display: *wl.Display,
 registry: *wl.Registry,
@@ -18,17 +20,19 @@ window_manager: ?*river.WindowManagerV1 = null,
 xkb_bindings: ?*river.XkbBindingsV1 = null,
 layer_shell: ?*river.LayerShellV1 = null,
 seat: ?*river.SeatV1 = null,
-key_bindings: []*river.XkbBindingV1 = undefined,
+actionMap: std.AutoHashMap(u32, actions.Action),
 
-pub fn init(allocator: std.mem.Allocator) !*Instance {
+pub fn init(io: std.Io, allocator: std.mem.Allocator) !*Instance {
     const instance = try allocator.create(Instance);
     const display = try wl.Display.connect(null);
     const registry = try display.getRegistry();
 
     instance.* = .{
+        .io = io,
         .allocator = allocator,
         .display = display,
         .registry = registry,
+        .actionMap = .init(instance.allocator),
     };
 
     instance.registry.setListener(*Instance, registryListener, instance);
@@ -37,7 +41,7 @@ pub fn init(allocator: std.mem.Allocator) !*Instance {
 }
 
 pub fn deinit(instance: *Instance) void {
-    instance.allocator.free(instance.key_bindings);
+    instance.actionMap.deinit();
     if (instance.layer_shell) |layer_shell| layer_shell.destroy();
     if (instance.xkb_bindings) |xkb_bindings| xkb_bindings.destroy();
     if (instance.window_manager) |window_manager| {
@@ -92,11 +96,7 @@ fn registryListener(registry: *wl.Registry, event: wl.Registry.Event, instance: 
     }
 }
 
-fn windowManagerListener(
-    window_manager: *river.WindowManagerV1,
-    event: river.WindowManagerV1.Event,
-    instance: *Instance,
-) void {
+fn windowManagerListener(window_manager: *river.WindowManagerV1, event: river.WindowManagerV1.Event, instance: *Instance) void {
     switch (event) {
         .output => |output_event| {
             std.debug.print("Available output {d}\n", .{output_event.id.getId()});
@@ -117,7 +117,6 @@ fn windowManagerListener(
         //     window_event.id.setListener(*types.WindowManager, window.windowListener, &wm);
         // },
         .manage_start => {
-            std.debug.print("Manage request\n", .{});
             window_manager.manageFinish();
         },
         .render_start => window_manager.renderFinish(),
