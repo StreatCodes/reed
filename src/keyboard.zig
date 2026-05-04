@@ -1,9 +1,9 @@
 const std = @import("std");
 const wayland = @import("wayland");
 const river = wayland.client.river;
-const Reed = @import("Reed.zig");
+const Instance = @import("Instance.zig");
 
-pub fn handleKeyPressed(reed: *Reed) void {
+pub fn handleKeyPressed(instance: *Instance) void {
     std.debug.print("Exiting\n", .{});
-    reed.exit = true;
+    instance.exit = true;
 }
