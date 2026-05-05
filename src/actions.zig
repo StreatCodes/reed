@@ -7,16 +7,19 @@ pub const Action = union(enum) {
 };
 
 pub fn execAction(instance: *Instance, action: Action) void {
-    _ = instance;
-
     switch (action) {
-        .open => open(),
+        .open => {
+            open(instance) catch |err| {
+                std.debug.print("Failed to open program {}\n", .{err});
+            };
+        },
         .close => close(),
     }
 }
 
-fn open() void {
-    std.debug.print("Open!!!\n", .{});
+fn open(instance: *Instance) !void {
+    const command = &[_][]const u8{"wmenu-run"};
+    _ = try std.process.spawn(instance.io, .{ .argv = command });
 }
 
 fn close() void {

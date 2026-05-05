@@ -20,6 +20,7 @@ pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Inst
 const KeyBindings = struct {
     keysym: u32,
     action: actions.Action,
+    modifiers: river.SeatV1.Modifiers,
 };
 
 // Temporary hard coded bindings
@@ -27,10 +28,12 @@ const bindings = [_]KeyBindings{
     .{
         .action = .open,
         .keysym = 0x0020, //Space
+        .modifiers = .{ .mod4 = true },
     },
     .{
         .action = .close,
         .keysym = 0x0030, //0
+        .modifiers = .{},
     },
 };
 
@@ -50,7 +53,7 @@ pub fn initKeyBindings(instance: *Instance) !void {
         const xkb_binding = xkb_bindings.getXkbBinding(
             instance.seat.?,
             binding.keysym,
-            .{},
+            binding.modifiers,
         ) catch |err| {
             std.debug.print("Failed to register binding ({}): {}\n", .{ binding, err });
             return;
