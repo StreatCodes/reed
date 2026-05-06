@@ -35,6 +35,11 @@ const bindings = [_]KeyBindings{
         .keysym = 0x0030, //0
         .modifiers = .{},
     },
+    .{
+        .action = .exit,
+        .keysym = 0x0061, //a
+        .modifiers = .{},
+    },
 };
 
 const BindingMap = struct {

@@ -1,6 +1,7 @@
 const std = @import("std");
 const wayland = @import("wayland");
 const input = @import("input.zig");
+const screen = @import("screen.zig");
 const actions = @import("actions.zig");
 const river = wayland.client.river;
 const wl = wayland.client.wl;
@@ -99,8 +100,8 @@ fn registryListener(registry: *wl.Registry, event: wl.Registry.Event, instance: 
 fn windowManagerListener(window_manager: *river.WindowManagerV1, event: river.WindowManagerV1.Event, instance: *Instance) void {
     switch (event) {
         .output => |output_event| {
-            std.debug.print("Available output {d}\n", .{output_event.id.getId()});
-            // output_event.id.setListener(?*anyopaque, outputListener, null);
+            const output = output_event.id;
+            output.setListener(*Instance, screen.outputListener, instance);
         },
         .seat => |seat_event| {
             std.debug.print("New seat {d}\n", .{seat_event.id.getId()});
@@ -112,10 +113,11 @@ fn windowManagerListener(window_manager: *river.WindowManagerV1, event: river.Wi
                 std.debug.print("Failed to setup bindings {} \n", .{err});
             };
         },
-        // .window => |window_event| {
-        //     window.pending = window_event.id;
-        //     window_event.id.setListener(*types.WindowManager, window.windowListener, &wm);
-        // },
+        .window => |window_event| {
+            var window = window_event.id;
+            window.setListener(*Instance, screen.windowListener, instance);
+            window.proposeDimensions(600, 600);
+        },
         .manage_start => {
             window_manager.manageFinish();
         },
