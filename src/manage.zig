@@ -10,8 +10,9 @@ pub fn handleManageStart(instance: *Instance, window_manager: *river.WindowManag
     for (instance.windows.items) |window| {
         if (window.new) {
             window.river_window.proposeDimensions(600, 600);
+            window.river_node.setPosition(window.x, window.y);
+            instance.seat.?.focusWindow(window.river_window);
         }
-        // instance.seat.?.focusWindow(_window: *WindowV1)
     }
     window_manager.manageFinish();
 }
