@@ -5,6 +5,20 @@ const wl = wayland.client.wl;
 const Instance = @import("Instance.zig");
 const actions = @import("actions.zig");
 
+pub fn handleNewSeat(instance: *Instance, seat: *river.SeatV1) !void {
+    std.debug.print("New seat {d}\n", .{seat.getId()});
+
+    //TODO handle multiple seats in future.
+    instance.seat = seat;
+    seat.setListener(*Instance, seatListener, instance);
+
+    initKeyBindings(instance) catch |err| {
+        std.debug.print("Failed to setup bindings {} \n", .{err});
+    };
+
+    //TODO init mouse bindings
+}
+
 pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Instance) void {
     _ = instance;
     switch (event) {

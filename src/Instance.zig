@@ -3,6 +3,7 @@ const wayland = @import("wayland");
 const input = @import("input.zig");
 const screen = @import("screen.zig");
 const actions = @import("actions.zig");
+const manage = @import("manage.zig");
 const river = wayland.client.river;
 const wl = wayland.client.wl;
 
@@ -22,6 +23,7 @@ xkb_bindings: ?*river.XkbBindingsV1 = null,
 layer_shell: ?*river.LayerShellV1 = null,
 seat: ?*river.SeatV1 = null,
 actionMap: std.AutoHashMap(u32, actions.Action),
+windows: std.ArrayList(screen.Window),
 
 pub fn init(io: std.Io, allocator: std.mem.Allocator) !*Instance {
     const instance = try allocator.create(Instance);
@@ -34,6 +36,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !*Instance {
         .display = display,
         .registry = registry,
         .actionMap = .init(instance.allocator),
+        .windows = .empty,
     };
 
     instance.registry.setListener(*Instance, registryListener, instance);
@@ -42,6 +45,8 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !*Instance {
 }
 
 pub fn deinit(instance: *Instance) void {
+    //TODO iterate windows and destroy them?
+    instance.windows.deinit(instance.allocator);
     instance.actionMap.deinit();
     if (instance.layer_shell) |layer_shell| layer_shell.destroy();
     if (instance.xkb_bindings) |xkb_bindings| xkb_bindings.destroy();
@@ -104,22 +109,19 @@ fn windowManagerListener(window_manager: *river.WindowManagerV1, event: river.Wi
             output.setListener(*Instance, screen.outputListener, instance);
         },
         .seat => |seat_event| {
-            std.debug.print("New seat {d}\n", .{seat_event.id.getId()});
-            const seat = seat_event.id;
-            instance.seat = seat;
-            seat.setListener(*Instance, input.seatListener, instance);
-
-            input.initKeyBindings(instance) catch |err| {
-                std.debug.print("Failed to setup bindings {} \n", .{err});
+            input.handleNewSeat(instance, seat_event.id) catch |err| {
+                std.debug.print("Error creating seat {}\n", .{err});
             };
         },
         .window => |window_event| {
-            var window = window_event.id;
-            window.setListener(*Instance, screen.windowListener, instance);
-            window.proposeDimensions(600, 600);
+            screen.handleNewWindow(instance, window_event.id) catch |err| {
+                std.debug.print("Error opening window {}\n", .{err});
+            };
         },
         .manage_start => {
-            window_manager.manageFinish();
+            manage.handleManageStart(instance, window_manager) catch |err| {
+                std.debug.print("Error during window management sequence {}\n", .{err});
+            };
         },
         .render_start => window_manager.renderFinish(),
         .finished => {
