@@ -5,18 +5,44 @@ const wl = wayland.client.wl;
 const Instance = @import("Instance.zig");
 const actions = @import("actions.zig");
 
-pub fn handleNewSeat(instance: *Instance, seat: *river.SeatV1) !void {
+const InputError = error{
+    MultiSeatUnsupported,
+};
+
+//TODO move me
+const MouseButton = enum(u32) {
+    left = 0x110, // BTN_LEFT
+    right = 0x111, // BTN_RIGHT
+    middle = 0x112, // BTN_MIDDLE
+    side = 0x113, // BTN_SIDE
+    extra = 0x114, // BTN_EXTRA
+    forward = 0x115, // BTN_FORWARD
+    back = 0x116, // BTN_BACK
+};
+
+pub fn handleNewSeat(instance: *Instance, seat: *river.SeatV1) InputError!void {
     std.debug.print("New seat {d}\n", .{seat.getId()});
 
-    //TODO handle multiple seats in future.
+    if (instance.seat != null) {
+        return InputError.MultiSeatUnsupported;
+    }
+
     instance.seat = seat;
     seat.setListener(*Instance, seatListener, instance);
 
     initKeyBindings(instance) catch |err| {
-        std.debug.print("Failed to setup bindings {} \n", .{err});
+        std.debug.print("Failed to setup key bindings {}\n", .{err});
     };
 
     //TODO init mouse bindings
+    const binding = seat.getPointerBinding(@intFromEnum(MouseButton.left), .{ .mod4 = true }) catch {
+        std.debug.print("Failed to setup pointer bindings\n", .{});
+        return;
+    };
+    _ = binding;
+    //TODO move this to initPointerBindings
+    //TODO use the binding, (don't forget to .enable it)
+    //TODO will probably require a PointerBinding
 }
 
 pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Instance) void {
@@ -26,19 +52,18 @@ pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Inst
             _ = interaction;
             std.debug.print("Window interaction\n", .{});
         },
-
         else => {},
     }
 }
 
-const KeyBindings = struct {
+const KeyBinding = struct {
     keysym: u32,
     action: actions.Action,
     modifiers: river.SeatV1.Modifiers,
 };
 
 // Temporary hard coded bindings
-const bindings = [_]KeyBindings{
+const bindings = [_]KeyBinding{
     .{
         .action = .open,
         .keysym = 0x0020, //Space

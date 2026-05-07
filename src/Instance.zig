@@ -81,19 +81,34 @@ fn registryListener(registry: *wl.Registry, event: wl.Registry.Event, instance: 
     switch (event) {
         .global => |global| {
             const interface_name = std.mem.span(global.interface);
+
             if (std.mem.eql(u8, interface_name, "river_window_manager_v1")) {
-                std.debug.print("Registering {s} {d}\n", .{ interface_name, global.version });
-                const window_manager = registry.bind(global.name, river.WindowManagerV1, 4) catch return;
+                std.debug.print("Registering {s} v{d}\n", .{ interface_name, global.version });
+                const window_manager = registry.bind(global.name, river.WindowManagerV1, 4) catch {
+                    @panic("Failed to register river_window_manager_v1");
+                };
                 window_manager.setListener(*Instance, windowManagerListener, instance);
                 instance.window_manager = window_manager;
-            } else if (std.mem.eql(u8, interface_name, "river_xkb_bindings_v1")) {
-                std.debug.print("Registering {s} {d}\n", .{ interface_name, global.version });
-                instance.xkb_bindings =
-                    registry.bind(global.name, river.XkbBindingsV1, 2) catch null;
-            } else if (std.mem.eql(u8, interface_name, "river_layer_shell_v1")) {
-                std.debug.print("Registering {s} {d}\n", .{ interface_name, global.version });
-                instance.layer_shell =
-                    registry.bind(global.name, river.LayerShellV1, 1) catch null;
+                return;
+            }
+
+            if (std.mem.eql(u8, interface_name, "river_xkb_bindings_v1")) {
+                std.debug.print("Registering {s} v{d}\n", .{ interface_name, global.version });
+                const xkb_bindings = registry.bind(global.name, river.XkbBindingsV1, 2) catch {
+                    @panic("Failed to register river_xkb_bindings_v1");
+                };
+                instance.xkb_bindings = xkb_bindings;
+                return;
+            }
+
+            if (std.mem.eql(u8, interface_name, "river_layer_shell_v1")) {
+                std.debug.print("Registering {s} v{d}\n", .{ interface_name, global.version });
+                const layer_shell =
+                    registry.bind(global.name, river.LayerShellV1, 1) catch {
+                        @panic("Failed to register river_layer_shell_v1");
+                    };
+                instance.layer_shell = layer_shell;
+                return;
             }
         },
         .global_remove => |global| {
