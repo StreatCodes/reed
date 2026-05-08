@@ -20,9 +20,9 @@ pub fn handleNewSeat(instance: *Instance, seat: *river.SeatV1) InputError!void {
     instance.seat = seat;
     seat.setListener(*Instance, seatListener, instance);
 
-    initKeyBindings(instance) catch |err| {
-        std.debug.print("Failed to setup key bindings {}\n", .{err});
-    };
+    // Hard coded for now
+    setKeyBinding(instance, .space, .{ .mod4 = true }, .open);
+    setKeyBinding(instance, .q, .{ .mod4 = true }, .close);
 
     //TODO apply other mouse bindings here
     setPointerBinding(instance, .left, .{ .mod4 = true }, .mouse_test);
@@ -39,56 +39,24 @@ pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Inst
     }
 }
 
-const KeyBinding = struct {
-    keysym: events.Key,
-    action: actions.Action,
-    modifiers: river.SeatV1.Modifiers,
-};
-
-// Temporary hard coded bindings
-const bindings = [_]KeyBinding{
-    .{
-        .action = .open,
-        .keysym = .space,
-        .modifiers = .{ .mod4 = true },
-    },
-    .{
-        .action = .close,
-        .keysym = .q,
-        .modifiers = .{ .mod4 = true },
-    },
-};
-
-const BindingMap = struct {
-    instance: *Instance,
-    action: actions.Action,
-};
-
-fn initKeyBindings(instance: *Instance) !void {
-    const xkb_bindings = instance.xkb_bindings orelse {
-        std.debug.print("Failed to find xkb bindings\n", .{});
+//TODO keep track of the bindings and release them on shutdown
+fn setKeyBinding(instance: *Instance, key: events.Key, modifiers: river.SeatV1.Modifiers, action: actions.Action) void {
+    const binding = instance.xkb_bindings.?.getXkbBinding(instance.seat.?, @intFromEnum(key), modifiers) catch {
+        std.debug.print("Failed to setup key binding\n", .{});
         return;
     };
 
-    for (bindings) |binding| {
-        std.debug.print("Registering key binding {x} {any}\n", .{ binding.keysym, binding.action });
-        const xkb_binding = xkb_bindings.getXkbBinding(
-            instance.seat.?,
-            @intFromEnum(binding.keysym),
-            binding.modifiers,
-        ) catch |err| {
-            std.debug.print("Failed to register binding ({}): {}\n", .{ binding, err });
-            return;
-        };
+    instance.actionMap.put(binding.getId(), action) catch {
+        std.debug.print("Failed to store key binding\n", .{});
+        return;
+    };
 
-        try instance.actionMap.put(xkb_binding.getId(), binding.action);
-
-        xkb_binding.setListener(*Instance, xkbBindingListener, instance);
-        xkb_binding.enable();
-    }
+    std.debug.print("Registering key binding {any}\n", .{action});
+    binding.setListener(*Instance, keyBindingListener, instance);
+    binding.enable();
 }
 
-fn xkbBindingListener(
+fn keyBindingListener(
     xkb_binding: *river.XkbBindingV1,
     event: river.XkbBindingV1.Event,
     instance: *Instance,
