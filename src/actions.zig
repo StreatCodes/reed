@@ -5,9 +5,17 @@ pub const Action = union(enum) {
     open: void,
     close: void,
     exit: void,
+    mouse_test: void,
 };
 
-pub fn execAction(instance: *Instance, action: Action) void {
+pub const Event = enum {
+    pressed,
+    released,
+    /// Keyboard only
+    stop_repeat,
+};
+
+pub fn execAction(instance: *Instance, action: Action, event: Event) void {
     switch (action) {
         .open => {
             open(instance) catch |err| {
@@ -16,6 +24,7 @@ pub fn execAction(instance: *Instance, action: Action) void {
         },
         .close => close(),
         .exit => exit(instance),
+        .mouse_test => std.debug.print("Mouse clicked!!! {}", .{event}),
     }
 }
 
