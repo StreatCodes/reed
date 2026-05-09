@@ -1,5 +1,6 @@
 const std = @import("std");
 const Instance = @import("Instance.zig");
+const events = @import("events.zig");
 
 pub const Action = union(enum) {
     open: void,
@@ -8,14 +9,7 @@ pub const Action = union(enum) {
     mouse_test: void,
 };
 
-pub const Event = enum {
-    pressed,
-    released,
-    /// Keyboard only
-    stop_repeat,
-};
-
-pub fn execAction(instance: *Instance, action: Action, event: Event) void {
+pub fn execAction(instance: *Instance, action: Action, event: events.Event) void {
     switch (action) {
         .open => {
             open(instance) catch |err| {

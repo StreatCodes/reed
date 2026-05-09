@@ -1,3 +1,10 @@
+pub const Event = enum {
+    pressed,
+    released,
+    /// Keyboard only
+    stop_repeat,
+};
+
 pub const Key = enum(u32) {
     space = 0x0020,
     tab = 0x0009,
