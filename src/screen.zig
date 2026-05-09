@@ -22,6 +22,8 @@ pub fn outputListener(output_v1: *river.OutputV1, event: river.OutputV1.Event, i
 }
 
 pub const Window = struct {
+    id: u32 = undefined,
+    title: []const u8 = "unknown",
     new: bool = true,
     river_window: *river.WindowV1 = undefined,
     river_node: *river.NodeV1 = undefined,
@@ -37,6 +39,7 @@ pub fn handleNewWindow(instance: *Instance, river_window: *river.WindowV1) !void
     river_window.setListener(*Instance, windowListener, instance);
 
     const window = Window{
+        .id = river_window.getId(),
         .river_window = river_window,
         .river_node = river_node,
     };
@@ -45,16 +48,34 @@ pub fn handleNewWindow(instance: *Instance, river_window: *river.WindowV1) !void
     river_node.placeTop();
 }
 
+fn getWindow(windows: []Window, window_id: u32) ?struct { window: *Window, index: usize } {
+    for (windows, 0..) |*window, index| {
+        if (window.id == window_id) return .{ .window = window, .index = index };
+    }
+    return null;
+}
+
 pub fn windowListener(window_v1: *river.WindowV1, event: river.WindowV1.Event, instance: *Instance) void {
-    _ = window_v1;
-    _ = instance;
+    const result = getWindow(instance.windows.items, window_v1.getId()) orelse {
+        std.debug.print("Received event from unknown window {}, ignoring\n", .{window_v1.getId()});
+        return;
+    };
+
+    const window = result.window;
+    const window_index = result.index;
 
     switch (event) {
         .title => |e| {
-            std.debug.print("New window title {any}\n", .{e.title});
+            if (e.title) |t| {
+                window.title = std.mem.span(t);
+            }
         },
         .dimensions => |dimensions| {
             std.debug.print("New window dimensions {d}x{d}\n", .{ dimensions.width, dimensions.height });
+        },
+        .closed => {
+            std.debug.print("Closing window", .{});
+            _ = instance.windows.orderedRemove(window_index);
         },
         else => {},
     }

@@ -12,26 +12,34 @@ pub const Action = union(enum) {
 pub fn execAction(instance: *Instance, action: Action, event: events.Event) void {
     switch (action) {
         .open => {
-            open(instance) catch |err| {
-                std.debug.print("Failed to open program {}\n", .{err});
-            };
+            if (event == .pressed) {
+                open(instance);
+            }
         },
-        .close => close(),
+        .close => {
+            if (event == .pressed) {
+                close(instance);
+            }
+        },
         .exit => exit(instance),
         .mouse_test => std.debug.print("Mouse clicked!!! {}", .{event}),
     }
 }
 
-fn open(instance: *Instance) !void {
+fn open(instance: *Instance) void {
     const command = &[_][]const u8{"wmenu-run"};
-    _ = try std.process.spawn(instance.io, .{
+    _ = std.process.spawn(instance.io, .{
         .argv = command,
         .pgid = 0,
-    });
+    }) catch |err| {
+        std.debug.print("Failed to open program {}\n", .{err});
+    };
 }
 
-fn close() void {
-    std.debug.print("Close!!!\n", .{});
+fn close(instance: *Instance) void {
+    if (instance.windows.items.len == 0) return;
+    const window = instance.windows.getLast();
+    window.river_window.close();
 }
 
 fn exit(instance: *Instance) void {
