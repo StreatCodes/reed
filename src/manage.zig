@@ -1,18 +1,43 @@
 const std = @import("std");
 const wayland = @import("wayland");
 const Instance = @import("Instance.zig");
+const screen = @import("screen.zig");
 const river = wayland.client.river;
 const wl = wayland.client.wl;
 
 pub fn handleManageStart(instance: *Instance, window_manager: *river.WindowManagerV1) !void {
     std.debug.print("Manage start\n", .{});
 
-    for (instance.windows.items) |window| {
+    var focus_window_idx: ?usize = null;
+
+    for (instance.windows.items, 0..) |*window, index| {
         if (window.new) {
             window.river_window.proposeDimensions(600, 600);
             window.river_node.setPosition(window.x, window.y);
-            instance.seat.?.focusWindow(window.river_window);
+            focus_window_idx = index;
+            window.new = false;
+        }
+
+        if (window.interacted) {
+            focus_window_idx = index;
+            window.interacted = false;
         }
     }
+
+    if (focus_window_idx) |index| {
+        focusWindow(instance, index);
+    }
+
     window_manager.manageFinish();
+}
+
+/// Inform river of the new window focus and place it on top. We also
+/// move it to the last position in the instance window array, as that's
+/// how we track the focused window on our side.
+fn focusWindow(instance: *Instance, index: usize) void {
+    const window = instance.windows.orderedRemove(index);
+    instance.windows.append(instance.allocator, window) catch @panic("Failed to focus window");
+
+    window.river_node.placeTop();
+    instance.seat.?.focusWindow(window.river_window);
 }

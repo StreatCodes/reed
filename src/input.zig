@@ -5,6 +5,7 @@ const wl = wayland.client.wl;
 const Instance = @import("Instance.zig");
 const actions = @import("actions.zig");
 const events = @import("events.zig");
+const screen = @import("screen.zig");
 
 const InputError = error{
     MultiSeatUnsupported,
@@ -29,11 +30,14 @@ pub fn handleNewSeat(instance: *Instance, seat: *river.SeatV1) InputError!void {
 }
 
 pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Instance) void {
-    _ = instance;
     switch (event) {
         .window_interaction => |interaction| {
-            _ = interaction;
-            std.debug.print("Window interaction\n", .{});
+            const window_id = interaction.window.?.getId();
+            const result = screen.getWindow(instance.windows.items, window_id) orelse {
+                std.debug.print("Interacted with unknown window {d}, ignoring\n", .{window_id});
+                return;
+            };
+            result.window.interacted = true;
         },
         else => {},
     }

@@ -25,6 +25,7 @@ pub const Window = struct {
     id: u32 = undefined,
     title: []const u8 = "unknown",
     new: bool = true,
+    interacted: bool = false,
     river_window: *river.WindowV1 = undefined,
     river_node: *river.NodeV1 = undefined,
     x: i32 = 200,
@@ -45,10 +46,9 @@ pub fn handleNewWindow(instance: *Instance, river_window: *river.WindowV1) !void
     };
 
     try instance.windows.append(instance.allocator, window);
-    river_node.placeTop();
 }
 
-fn getWindow(windows: []Window, window_id: u32) ?struct { window: *Window, index: usize } {
+pub fn getWindow(windows: []Window, window_id: u32) ?struct { window: *Window, index: usize } {
     for (windows, 0..) |*window, index| {
         if (window.id == window_id) return .{ .window = window, .index = index };
     }
@@ -76,6 +76,11 @@ pub fn windowListener(window_v1: *river.WindowV1, event: river.WindowV1.Event, i
         .closed => {
             std.debug.print("Closing window", .{});
             _ = instance.windows.orderedRemove(window_index);
+
+            //Mark the last window as interacted so it gains focus.
+            if (instance.windows.items.len > 0) {
+                instance.windows.items[instance.windows.items.len - 1].interacted = true;
+            }
         },
         else => {},
     }
