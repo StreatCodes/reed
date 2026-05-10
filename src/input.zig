@@ -122,6 +122,17 @@ pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Inst
             };
             result.window.interacted = true;
         },
+        .pointer_enter => |pointer_event| {
+            const river_window = pointer_event.window orelse return;
+            const result = window.getWindow(instance.windows.items, river_window.getId()) orelse {
+                std.debug.print("Pointer entered unknown window {}, ignoring\n", .{river_window.getId()});
+                return;
+            };
+            instance.seat.?.hover = result.window;
+        },
+        .pointer_leave => {
+            instance.seat.?.hover = null;
+        },
         .removed => {
             instance.seat.?.deinit(instance.allocator);
             instance.seat = null;
