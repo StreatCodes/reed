@@ -11,12 +11,19 @@ const InputError = error{
     MultiSeatUnsupported,
 };
 
-//TODO remove key_bindings, pointer bindings, update action_map to be a struct with the binding on it
+const Mapping = struct {
+    action: actions.Action,
+    binding: Binding,
+};
+
+const Binding = union(enum) {
+    key: *river.XkbBindingV1,
+    pointer: *river.PointerBindingV1,
+};
+
 pub const Seat = struct {
     river_seat: *river.SeatV1,
-    action_map: std.AutoHashMap(u32, actions.Action),
-    key_bindings: std.ArrayList(*river.XkbBindingV1),
-    pointer_bindings: std.ArrayList(*river.PointerBindingV1),
+    action_map: std.AutoHashMap(u32, Mapping),
     hover: ?*Window = null,
 
     pub fn init(allocator: std.mem.Allocator, river_seat: *river.SeatV1) !*Seat {
@@ -24,22 +31,21 @@ pub const Seat = struct {
         seat.* = .{
             .river_seat = river_seat,
             .action_map = .init(allocator),
-            .key_bindings = .empty,
-            .pointer_bindings = .empty,
         };
 
         return seat;
     }
 
     pub fn deinit(seat: *Seat, allocator: std.mem.Allocator) void {
-        for (seat.key_bindings.items) |binding| {
-            binding.destroy();
+        var iterator = seat.action_map.iterator();
+
+        while (iterator.next()) |mapping| {
+            switch (mapping.value_ptr.binding) {
+                .key => |binding| binding.destroy(),
+                .pointer => |binding| binding.destroy(),
+            }
         }
-        seat.key_bindings.deinit(allocator);
-        for (seat.pointer_bindings.items) |binding| {
-            binding.destroy();
-        }
-        seat.pointer_bindings.deinit(allocator);
+
         seat.action_map.deinit();
         allocator.destroy(seat);
     }
@@ -51,11 +57,11 @@ pub const Seat = struct {
             return;
         };
 
-        seat.key_bindings.append(instance.allocator, binding) catch {
-            std.debug.print("Failed to store key binding\n", .{});
-            return;
+        const mapping = Mapping{
+            .action = action,
+            .binding = .{ .key = binding },
         };
-        seat.action_map.put(binding.getId(), action) catch {
+        seat.action_map.put(binding.getId(), mapping) catch {
             std.debug.print("Failed to store key binding map\n", .{});
             return;
         };
@@ -66,17 +72,16 @@ pub const Seat = struct {
     }
 
     fn setPointerBinding(seat: *Seat, button: events.Mouse, modifiers: river.SeatV1.Modifiers, action: actions.Action) void {
-        const instance = Instance.get();
         const binding = seat.river_seat.getPointerBinding(@intFromEnum(button), modifiers) catch {
             std.debug.print("Failed to setup pointer binding\n", .{});
             return;
         };
 
-        seat.pointer_bindings.append(instance.allocator, binding) catch {
-            std.debug.print("Failed to store pointer binding\n", .{});
-            return;
+        const mapping = Mapping{
+            .action = action,
+            .binding = .{ .pointer = binding },
         };
-        seat.action_map.put(binding.getId(), action) catch {
+        seat.action_map.put(binding.getId(), mapping) catch {
             std.debug.print("Failed to store pointer binding map\n", .{});
             return;
         };
@@ -130,15 +135,15 @@ fn keyBindingListener(
     event: river.XkbBindingV1.Event,
     seat: *Seat,
 ) void {
-    const action = seat.action_map.get(xkb_binding.getId()) orelse {
+    const mapping = seat.action_map.get(xkb_binding.getId()) orelse {
         std.debug.print("Unknown binding {d}\n", .{xkb_binding.getId()});
         return;
     };
 
     switch (event) {
-        .pressed => actions.execAction(action, .pressed),
-        .released => actions.execAction(action, .released),
-        .stop_repeat => actions.execAction(action, .stop_repeat),
+        .pressed => actions.execAction(mapping.action, .pressed),
+        .released => actions.execAction(mapping.action, .released),
+        .stop_repeat => actions.execAction(mapping.action, .stop_repeat),
     }
 }
 
@@ -147,13 +152,13 @@ fn pointerBindingListener(
     event: river.PointerBindingV1.Event,
     seat: *Seat,
 ) void {
-    const action = seat.action_map.get(pointer_binding.getId()) orelse {
+    const mapping = seat.action_map.get(pointer_binding.getId()) orelse {
         std.debug.print("Unknown pointer binding {d}\n", .{pointer_binding.getId()});
         return;
     };
 
     switch (event) {
-        .pressed => actions.execAction(action, .pressed),
-        .released => actions.execAction(action, .released),
+        .pressed => actions.execAction(mapping.action, .pressed),
+        .released => actions.execAction(mapping.action, .released),
     }
 }
