@@ -1,12 +1,11 @@
 const std = @import("std");
 const wayland = @import("wayland");
 const Instance = @import("Instance.zig");
-const screen = @import("screen.zig");
 const river = wayland.client.river;
-const wl = wayland.client.wl;
 
-pub fn handleManageStart(instance: *Instance, window_manager: *river.WindowManagerV1) !void {
+pub fn handleManageStart(window_manager: *river.WindowManagerV1) !void {
     std.debug.print("Manage start\n", .{});
+    const instance = Instance.get();
 
     var focus_window_idx: ?usize = null;
 

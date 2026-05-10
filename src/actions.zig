@@ -9,24 +9,25 @@ pub const Action = union(enum) {
     move_window: void,
 };
 
-pub fn execAction(instance: *Instance, action: Action, event: events.Event) void {
+pub fn execAction(action: Action, event: events.Event) void {
     switch (action) {
         .open => {
             if (event == .pressed) {
-                open(instance);
+                open();
             }
         },
         .close => {
             if (event == .pressed) {
-                close(instance);
+                close();
             }
         },
-        .exit => exit(instance),
+        .exit => exit(),
         .move_window => std.debug.print("Mouse clicked!!! {}", .{event}),
     }
 }
 
-fn open(instance: *Instance) void {
+fn open() void {
+    const instance = Instance.get();
     const command = &[_][]const u8{"wmenu-run"};
     _ = std.process.spawn(instance.io, .{
         .argv = command,
@@ -36,12 +37,14 @@ fn open(instance: *Instance) void {
     };
 }
 
-fn close(instance: *Instance) void {
+fn close() void {
+    const instance = Instance.get();
     if (instance.windows.items.len == 0) return;
     const window = instance.windows.getLast();
     window.river_window.close();
 }
 
-fn exit(instance: *Instance) void {
+fn exit() void {
+    const instance = Instance.get();
     instance.exit = true;
 }

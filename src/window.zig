@@ -1,25 +1,7 @@
 const std = @import("std");
+const Instance = @import("Instance.zig");
 const wayland = @import("wayland");
 const river = wayland.client.river;
-const wl = wayland.client.wl;
-const Instance = @import("Instance.zig");
-const actions = @import("actions.zig");
-
-//Not sure we even care about this stuff currently.
-pub fn outputListener(output_v1: *river.OutputV1, event: river.OutputV1.Event, instance: *Instance) void {
-    _ = output_v1;
-    _ = instance;
-
-    switch (event) {
-        .position => |pos| {
-            std.debug.print("Output position {d}x{d}\n", .{ pos.x, pos.y });
-        },
-        .dimensions => |dimensions| {
-            std.debug.print("Output dimensions {d}x{d}\n", .{ dimensions.width, dimensions.height });
-        },
-        else => {},
-    }
-}
 
 pub const Window = struct {
     id: u32 = undefined,
@@ -35,10 +17,11 @@ pub const Window = struct {
     height: u32 = 600,
 };
 
-pub fn handleNewWindow(instance: *Instance, river_window: *river.WindowV1) !void {
+pub fn handleNewWindow(river_window: *river.WindowV1) !void {
     std.debug.print("New window ({d})\n", .{river_window.getId()});
+    const instance = Instance.get();
     const river_node = try river_window.getNode();
-    river_window.setListener(*Instance, windowListener, instance);
+    river_window.setListener(?*anyopaque, windowListener, null);
 
     const window = Window{
         .id = river_window.getId(),
@@ -56,7 +39,8 @@ pub fn getWindow(windows: []Window, window_id: u32) ?struct { window: *Window, i
     return null;
 }
 
-pub fn windowListener(window_v1: *river.WindowV1, event: river.WindowV1.Event, instance: *Instance) void {
+pub fn windowListener(window_v1: *river.WindowV1, event: river.WindowV1.Event, _: ?*anyopaque) void {
+    const instance = Instance.get();
     const result = getWindow(instance.windows.items, window_v1.getId()) orelse {
         std.debug.print("Received event from unknown window {}, ignoring\n", .{window_v1.getId()});
         return;
