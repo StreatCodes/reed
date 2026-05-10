@@ -6,7 +6,7 @@ pub const Action = union(enum) {
     open: void,
     close: void,
     exit: void,
-    mouse_test: void,
+    move_window: void,
 };
 
 pub fn execAction(instance: *Instance, action: Action, event: events.Event) void {
@@ -22,7 +22,7 @@ pub fn execAction(instance: *Instance, action: Action, event: events.Event) void
             }
         },
         .exit => exit(instance),
-        .mouse_test => std.debug.print("Mouse clicked!!! {}", .{event}),
+        .move_window => std.debug.print("Mouse clicked!!! {}", .{event}),
     }
 }
 

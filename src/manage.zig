@@ -39,5 +39,5 @@ fn focusWindow(instance: *Instance, index: usize) void {
     instance.windows.append(instance.allocator, window) catch @panic("Failed to focus window");
 
     window.river_node.placeTop();
-    instance.seat.?.focusWindow(window.river_window);
+    instance.seat.?.river_seat.focusWindow(window.river_window);
 }

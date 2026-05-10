@@ -26,6 +26,7 @@ pub const Window = struct {
     title: []const u8 = "unknown",
     new: bool = true,
     interacted: bool = false,
+    hover: bool = false,
     river_window: *river.WindowV1 = undefined,
     river_node: *river.NodeV1 = undefined,
     x: i32 = 200,
@@ -81,6 +82,10 @@ pub fn windowListener(window_v1: *river.WindowV1, event: river.WindowV1.Event, i
             if (instance.windows.items.len > 0) {
                 instance.windows.items[instance.windows.items.len - 1].interacted = true;
             }
+        },
+        .pointer_move_requested => |seat| {
+            _ = seat;
+            std.debug.print("Move requested\n", .{});
         },
         else => {},
     }

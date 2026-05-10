@@ -21,8 +21,7 @@ registry: *wl.Registry,
 window_manager: ?*river.WindowManagerV1 = null,
 xkb_bindings: ?*river.XkbBindingsV1 = null,
 layer_shell: ?*river.LayerShellV1 = null,
-seat: ?*river.SeatV1 = null,
-actionMap: std.AutoHashMap(u32, actions.Action),
+seat: ?*input.Seat = null,
 windows: std.ArrayList(screen.Window),
 
 pub fn init(io: std.Io, allocator: std.mem.Allocator) !*Instance {
@@ -35,7 +34,6 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !*Instance {
         .allocator = allocator,
         .display = display,
         .registry = registry,
-        .actionMap = .init(instance.allocator),
         .windows = .empty,
     };
 
@@ -47,7 +45,6 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !*Instance {
 pub fn deinit(instance: *Instance) void {
     //TODO iterate windows and destroy them?
     instance.windows.deinit(instance.allocator);
-    instance.actionMap.deinit();
     if (instance.layer_shell) |layer_shell| layer_shell.destroy();
     if (instance.xkb_bindings) |xkb_bindings| xkb_bindings.destroy();
     if (instance.window_manager) |window_manager| {
