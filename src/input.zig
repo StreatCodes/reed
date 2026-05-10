@@ -21,10 +21,16 @@ const Binding = union(enum) {
     pointer: *river.PointerBindingV1,
 };
 
+/// These actions are handled in the manage sequence
+const WindowAction = enum {
+    move,
+};
+
 pub const Seat = struct {
     river_seat: *river.SeatV1,
     action_map: std.AutoHashMap(u32, Mapping),
     hover: ?*Window = null,
+    pending_action: ?WindowAction = null,
 
     pub fn init(allocator: std.mem.Allocator, river_seat: *river.SeatV1) !*Seat {
         const seat = try allocator.create(Seat);

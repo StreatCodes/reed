@@ -21,6 +21,17 @@ pub fn handleManageStart(window_manager: *river.WindowManagerV1) !void {
             focus_window_idx = index;
             window.interacted = false;
         }
+
+        if (instance.seat.?.pending_action) |action| {
+            switch (action) {
+                //TODO move these to their own functions?
+                .move => {
+                    if (instance.seat.?.hover) |_| {
+                        window.river_node.setPosition(0, 0);
+                    }
+                },
+            }
+        }
     }
 
     if (focus_window_idx) |index| {

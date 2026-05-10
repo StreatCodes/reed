@@ -10,6 +10,7 @@ pub const Action = union(enum) {
 };
 
 pub fn execAction(action: Action, event: events.Event) void {
+    const instance = Instance.get();
     switch (action) {
         .open => {
             if (event == .pressed) {
@@ -22,7 +23,7 @@ pub fn execAction(action: Action, event: events.Event) void {
             }
         },
         .exit => exit(),
-        .move_window => std.debug.print("Mouse clicked!!! {}", .{event}),
+        .move_window => instance.seat.?.pending_action = .move,
     }
 }
 
