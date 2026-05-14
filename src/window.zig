@@ -1,7 +1,6 @@
 const std = @import("std");
 const Instance = @import("Instance.zig");
 const wayland = @import("wayland");
-const actions = @import("actions.zig");
 const river = wayland.client.river;
 
 pub const Window = struct {
@@ -75,10 +74,10 @@ pub fn windowListener(window_v1: *river.WindowV1, event: river.WindowV1.Event, _
                 instance.windows.items[instance.windows.items.len - 1].interacted = true;
             }
         },
-        .pointer_move_requested => |seat| {
-            _ = seat;
+        .pointer_move_requested => {
+            const seat = instance.seat orelse return;
             std.debug.print("Move requested\n", .{});
-            actions.startMoveWindow(instance);
+            seat.startMoveWindow();
         },
         else => {},
     }

@@ -2,7 +2,6 @@ const std = @import("std");
 const wayland = @import("wayland");
 const input = @import("input.zig");
 const output = @import("output.zig");
-const actions = @import("actions.zig");
 const manage = @import("manage.zig");
 const window = @import("window.zig");
 const river = wayland.client.river;

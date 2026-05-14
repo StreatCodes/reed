@@ -2,18 +2,13 @@ const std = @import("std");
 const wayland = @import("wayland");
 const river = wayland.client.river;
 const Instance = @import("Instance.zig");
-const actions = @import("actions.zig");
 const events = @import("events.zig");
 const window = @import("window.zig");
+const event_handlers = @import("event_handlers.zig");
 const Window = window.Window;
 
 const InputError = error{
     MultiSeatUnsupported,
-};
-
-const Mapping = struct {
-    action: actions.Action,
-    binding: Binding,
 };
 
 const Binding = union(enum) {
@@ -28,7 +23,7 @@ const WindowAction = enum {
 
 pub const Seat = struct {
     river_seat: *river.SeatV1,
-    action_map: std.AutoHashMap(u32, Mapping),
+    bindings: std.ArrayList(Binding) = .empty,
     hover: ?*Window = null,
 
     // TODO move these to their own struct
@@ -41,66 +36,71 @@ pub const Seat = struct {
 
     pub fn init(allocator: std.mem.Allocator, river_seat: *river.SeatV1) !*Seat {
         const seat = try allocator.create(Seat);
-        seat.* = .{
-            .river_seat = river_seat,
-            .action_map = .init(allocator),
-        };
-
+        seat.* = .{ .river_seat = river_seat };
         return seat;
     }
 
     pub fn deinit(seat: *Seat, allocator: std.mem.Allocator) void {
-        var iterator = seat.action_map.iterator();
-
-        while (iterator.next()) |mapping| {
-            switch (mapping.value_ptr.binding) {
-                .key => |binding| binding.destroy(),
-                .pointer => |binding| binding.destroy(),
+        for (seat.bindings.items) |binding| {
+            switch (binding) {
+                .key => |b| b.destroy(),
+                .pointer => |b| b.destroy(),
             }
         }
 
-        seat.action_map.deinit();
+        seat.bindings.deinit(allocator);
         allocator.destroy(seat);
     }
 
-    pub fn setKeyBinding(seat: *Seat, key: events.Key, modifiers: river.SeatV1.Modifiers, action: actions.Action) void {
+    pub fn startMoveWindow(seat: *Seat) void {
+        if (seat.hover) |w| {
+            seat.river_seat.opStartPointer();
+            seat.op_action = .move;
+            seat.op_start_x = w.x;
+            seat.op_start_y = w.y;
+            seat.op_dx = 0;
+            seat.op_dy = 0;
+        }
+    }
+
+    pub fn setKeyBinding(seat: *Seat, key: events.Key, modifiers: river.SeatV1.Modifiers, handler: event_handlers.KeyListener) void {
         const instance = Instance.get();
         const binding = instance.xkb_bindings.?.getXkbBinding(seat.river_seat, @intFromEnum(key), modifiers) catch {
             std.debug.print("Failed to setup key binding\n", .{});
             return;
         };
 
-        const mapping = Mapping{
-            .action = action,
-            .binding = .{ .key = binding },
-        };
-        seat.action_map.put(binding.getId(), mapping) catch {
-            std.debug.print("Failed to store key binding map\n", .{});
+        seat.bindings.append(instance.allocator, .{ .key = binding }) catch {
+            std.debug.print("Failed to store pointer binding\n", .{});
+            binding.destroy();
             return;
         };
 
-        std.debug.print("Registering key binding {any}\n", .{action});
-        binding.setListener(*Seat, keyBindingListener, seat);
+        std.debug.print("Registering key binding {any} {any}\n", .{ key, modifiers });
+        binding.setListener(*Instance, handler, instance);
         binding.enable();
     }
 
-    fn setPointerBinding(seat: *Seat, button: events.Mouse, modifiers: river.SeatV1.Modifiers, action: actions.Action) void {
+    fn setPointerBinding(
+        seat: *Seat,
+        button: events.Mouse,
+        modifiers: river.SeatV1.Modifiers,
+        handler: event_handlers.PointerListener,
+    ) void {
+        const instance = Instance.get();
         const binding = seat.river_seat.getPointerBinding(@intFromEnum(button), modifiers) catch {
             std.debug.print("Failed to setup pointer binding\n", .{});
             return;
         };
 
-        const mapping = Mapping{
-            .action = action,
-            .binding = .{ .pointer = binding },
-        };
-        seat.action_map.put(binding.getId(), mapping) catch {
-            std.debug.print("Failed to store pointer binding map\n", .{});
+        seat.bindings.append(instance.allocator, .{ .pointer = binding }) catch {
+            std.debug.print("Failed to store pointer binding\n", .{});
+            binding.destroy();
             return;
         };
 
-        std.debug.print("Registering pointer binding {any}\n", .{action});
-        binding.setListener(*Seat, pointerBindingListener, seat);
+        std.debug.print("Registering pointer binding {any} {any}\n", .{ button, modifiers });
+        binding.setListener(*Instance, handler, instance);
         binding.enable();
     }
 };
@@ -117,12 +117,12 @@ pub fn handleNewSeat(river_seat: *river.SeatV1) !void {
     instance.seat = seat;
     river_seat.setListener(*Instance, seatListener, instance);
 
-    // Hard coded for now
-    seat.setKeyBinding(.space, .{ .mod4 = true }, .open);
-    seat.setKeyBinding(.q, .{ .mod4 = true }, .close);
+    // Setup key bindings
+    seat.setKeyBinding(.space, .{ .mod4 = true }, event_handlers.handleOpenLauncher);
+    seat.setKeyBinding(.q, .{ .mod4 = true }, event_handlers.handleOpenLauncher);
 
-    //TODO apply other mouse bindings here
-    seat.setPointerBinding(.left, .{ .mod4 = true }, .move_window);
+    // Setup mouse bindings
+    seat.setPointerBinding(.left, .{ .mod4 = true }, event_handlers.handleMoveWindow);
 }
 
 pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Instance) void {
@@ -159,38 +159,5 @@ pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Inst
             seat.op_released = true;
         },
         else => {},
-    }
-}
-
-fn keyBindingListener(
-    xkb_binding: *river.XkbBindingV1,
-    event: river.XkbBindingV1.Event,
-    seat: *Seat,
-) void {
-    const mapping = seat.action_map.get(xkb_binding.getId()) orelse {
-        std.debug.print("Unknown binding {d}\n", .{xkb_binding.getId()});
-        return;
-    };
-
-    switch (event) {
-        .pressed => actions.execAction(mapping.action, .pressed),
-        .released => actions.execAction(mapping.action, .released),
-        .stop_repeat => actions.execAction(mapping.action, .stop_repeat),
-    }
-}
-
-fn pointerBindingListener(
-    pointer_binding: *river.PointerBindingV1,
-    event: river.PointerBindingV1.Event,
-    seat: *Seat,
-) void {
-    const mapping = seat.action_map.get(pointer_binding.getId()) orelse {
-        std.debug.print("Unknown pointer binding {d}\n", .{pointer_binding.getId()});
-        return;
-    };
-
-    switch (event) {
-        .pressed => actions.execAction(mapping.action, .pressed),
-        .released => actions.execAction(mapping.action, .released),
     }
 }
