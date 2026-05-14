@@ -23,19 +23,18 @@ pub fn handleManageStart(window_manager: *river.WindowManagerV1) !void {
         }
 
         const seat = instance.seat orelse continue;
-        if (seat.op_action) |action| {
-            switch (action) {
+        if (seat.operation) |*operation| {
+            switch (operation.action) {
                 .move => {
-                    const new_x = seat.op_start_x + seat.op_dx;
-                    const new_y = seat.op_start_y + seat.op_dy;
+                    const new_x = operation.start_x + operation.dx;
+                    const new_y = operation.start_y + operation.dy;
                     window.setPosition(new_x, new_y);
                 },
             }
 
-            if (seat.op_released) {
+            if (operation.released) {
                 seat.river_seat.opEnd();
-                seat.op_action = null;
-                seat.op_released = false;
+                seat.operation = null;
             }
         }
     }

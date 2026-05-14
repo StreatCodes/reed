@@ -21,18 +21,21 @@ const WindowAction = enum {
     move,
 };
 
+const Operation = struct {
+    action: WindowAction,
+    released: bool = false,
+    start_x: i32,
+    start_y: i32,
+    dx: i32 = 0,
+    dy: i32 = 0,
+};
+
 pub const Seat = struct {
     river_seat: *river.SeatV1,
     bindings: std.ArrayList(Binding) = .empty,
     hover: ?*Window = null,
 
-    // TODO move these to their own struct
-    op_action: ?WindowAction = null,
-    op_released: bool = false,
-    op_start_x: i32 = 0,
-    op_start_y: i32 = 0,
-    op_dx: i32 = 0,
-    op_dy: i32 = 0,
+    operation: ?Operation = null,
 
     pub fn init(allocator: std.mem.Allocator, river_seat: *river.SeatV1) !*Seat {
         const seat = try allocator.create(Seat);
@@ -55,11 +58,7 @@ pub const Seat = struct {
     pub fn startMoveWindow(seat: *Seat) void {
         if (seat.hover) |w| {
             seat.river_seat.opStartPointer();
-            seat.op_action = .move;
-            seat.op_start_x = w.x;
-            seat.op_start_y = w.y;
-            seat.op_dx = 0;
-            seat.op_dy = 0;
+            seat.operation = .{ .action = .move, .start_x = w.x, .start_y = w.y };
         }
     }
 
@@ -152,11 +151,15 @@ pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Inst
             instance.seat = null;
         },
         .op_delta => |op| {
-            seat.op_dx = op.dx;
-            seat.op_dy = op.dy;
+            if (seat.operation) |*operation| {
+                operation.dx = op.dx;
+                operation.dy = op.dy;
+            }
         },
         .op_release => {
-            seat.op_released = true;
+            if (seat.operation) |*operation| {
+                operation.released = true;
+            }
         },
         else => {},
     }
