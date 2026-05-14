@@ -1,6 +1,7 @@
 const std = @import("std");
 const Instance = @import("Instance.zig");
 const wayland = @import("wayland");
+const actions = @import("actions.zig");
 const river = wayland.client.river;
 
 pub const Window = struct {
@@ -15,6 +16,13 @@ pub const Window = struct {
     y: i32 = 200,
     width: u32 = 600,
     height: u32 = 600,
+
+    /// Should only be called in the manage or rendering sequence
+    pub fn setPosition(window: *Window, x: i32, y: i32) void {
+        window.x = x;
+        window.y = y;
+        window.river_node.setPosition(x, y);
+    }
 };
 
 pub fn handleNewWindow(river_window: *river.WindowV1) !void {
@@ -59,7 +67,7 @@ pub fn windowListener(window_v1: *river.WindowV1, event: river.WindowV1.Event, _
             std.debug.print("New window dimensions {d}x{d}\n", .{ dimensions.width, dimensions.height });
         },
         .closed => {
-            std.debug.print("Closing window", .{});
+            std.debug.print("Closing window\n", .{});
             _ = instance.windows.orderedRemove(window_index);
 
             //Mark the last window as interacted so it gains focus.
@@ -70,6 +78,7 @@ pub fn windowListener(window_v1: *river.WindowV1, event: river.WindowV1.Event, _
         .pointer_move_requested => |seat| {
             _ = seat;
             std.debug.print("Move requested\n", .{});
+            actions.startMoveWindow(instance);
         },
         else => {},
     }

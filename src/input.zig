@@ -30,7 +30,14 @@ pub const Seat = struct {
     river_seat: *river.SeatV1,
     action_map: std.AutoHashMap(u32, Mapping),
     hover: ?*Window = null,
-    pending_action: ?WindowAction = null,
+
+    // TODO move these to their own struct
+    op_action: ?WindowAction = null,
+    op_released: bool = false,
+    op_start_x: i32 = 0,
+    op_start_y: i32 = 0,
+    op_dx: i32 = 0,
+    op_dy: i32 = 0,
 
     pub fn init(allocator: std.mem.Allocator, river_seat: *river.SeatV1) !*Seat {
         const seat = try allocator.create(Seat);
@@ -119,6 +126,7 @@ pub fn handleNewSeat(river_seat: *river.SeatV1) !void {
 }
 
 pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Instance) void {
+    const seat = instance.seat orelse return;
     switch (event) {
         .window_interaction => |interaction| {
             const window_id = interaction.window.?.getId();
@@ -134,14 +142,21 @@ pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Inst
                 std.debug.print("Pointer entered unknown window {}, ignoring\n", .{river_window.getId()});
                 return;
             };
-            instance.seat.?.hover = result.window;
+            seat.hover = result.window;
         },
         .pointer_leave => {
-            instance.seat.?.hover = null;
+            seat.hover = null;
         },
         .removed => {
-            instance.seat.?.deinit(instance.allocator);
+            seat.deinit(instance.allocator);
             instance.seat = null;
+        },
+        .op_delta => |op| {
+            seat.op_dx = op.dx;
+            seat.op_dy = op.dy;
+        },
+        .op_release => {
+            seat.op_released = true;
         },
         else => {},
     }

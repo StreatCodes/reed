@@ -22,14 +22,20 @@ pub fn handleManageStart(window_manager: *river.WindowManagerV1) !void {
             window.interacted = false;
         }
 
-        if (instance.seat.?.pending_action) |action| {
+        const seat = instance.seat orelse continue;
+        if (seat.op_action) |action| {
             switch (action) {
-                //TODO move these to their own functions?
                 .move => {
-                    if (instance.seat.?.hover) |_| {
-                        window.river_node.setPosition(0, 0);
-                    }
+                    const new_x = seat.op_start_x + seat.op_dx;
+                    const new_y = seat.op_start_y + seat.op_dy;
+                    window.setPosition(new_x, new_y);
                 },
+            }
+
+            if (seat.op_released) {
+                seat.river_seat.opEnd();
+                seat.op_action = null;
+                seat.op_released = false;
             }
         }
     }
