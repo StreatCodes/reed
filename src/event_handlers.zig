@@ -29,6 +29,13 @@ pub fn handleWindowClose(_: *river.XkbBindingV1, event: river.XkbBindingV1.Event
 pub fn handleMoveWindow(_: *river.PointerBindingV1, event: river.PointerBindingV1.Event, instance: *Instance) void {
     const seat = instance.seat orelse return;
     if (event == .pressed) {
-        seat.startMoveWindow();
+        seat.startPointerOperation(.move, null);
+    }
+}
+
+pub fn handleResizeWindow(_: *river.PointerBindingV1, event: river.PointerBindingV1.Event, instance: *Instance) void {
+    const seat = instance.seat orelse return;
+    if (event == .pressed) {
+        seat.startPointerOperation(.resize, .{ .bottom = true, .right = true });
     }
 }

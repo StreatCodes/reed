@@ -3,6 +3,8 @@ const wayland = @import("wayland");
 const Instance = @import("Instance.zig");
 const river = wayland.client.river;
 
+/// The handler for River's Manage sequence. Any changes to window position,
+/// focus, size or z-index should happen here.
 pub fn handleManageStart(window_manager: *river.WindowManagerV1) !void {
     std.debug.print("Manage start\n", .{});
     const instance = Instance.get();
@@ -26,9 +28,37 @@ pub fn handleManageStart(window_manager: *river.WindowManagerV1) !void {
         if (seat.operation) |*operation| {
             switch (operation.action) {
                 .move => {
-                    const new_x = operation.start_x + operation.dx;
-                    const new_y = operation.start_y + operation.dy;
+                    const new_x = operation.window_start_x + operation.dx;
+                    const new_y = operation.window_start_y + operation.dy;
                     window.setPosition(new_x, new_y);
+                },
+                .resize => {
+                    var new_x = operation.window_start_x;
+                    var new_y = operation.window_start_y;
+                    var new_w = operation.window_start_w;
+                    var new_h = operation.window_start_h;
+
+                    if (operation.edges.left) {
+                        new_w -= operation.dx;
+                        new_x += operation.dx;
+                    }
+                    if (operation.edges.top) {
+                        new_h -= operation.dy;
+                        new_y += operation.dy;
+                    }
+                    if (operation.edges.right) {
+                        new_w += operation.dx;
+                    }
+                    if (operation.edges.bottom) {
+                        new_h += operation.dy;
+                    }
+
+                    // Prevent resizing below a minimun
+                    if (new_w < 120) new_w = 120;
+                    if (new_h < 120) new_h = 120;
+
+                    window.setPosition(new_x, new_y);
+                    window.setSize(new_w, new_h);
                 },
             }
 

@@ -19,15 +19,19 @@ const Binding = union(enum) {
 /// These actions are handled in the manage sequence
 const WindowAction = enum {
     move,
+    resize,
 };
 
 const Operation = struct {
     action: WindowAction,
     released: bool = false,
-    start_x: i32,
-    start_y: i32,
+    window_start_x: i32,
+    window_start_y: i32,
+    window_start_w: i32,
+    window_start_h: i32,
     dx: i32 = 0,
     dy: i32 = 0,
+    edges: river.WindowV1.Edges = .{},
 };
 
 pub const Seat = struct {
@@ -55,10 +59,17 @@ pub const Seat = struct {
         allocator.destroy(seat);
     }
 
-    pub fn startMoveWindow(seat: *Seat) void {
+    pub fn startPointerOperation(seat: *Seat, action: WindowAction, edges: ?river.WindowV1.Edges) void {
         if (seat.hover) |w| {
             seat.river_seat.opStartPointer();
-            seat.operation = .{ .action = .move, .start_x = w.x, .start_y = w.y };
+            seat.operation = .{
+                .action = action,
+                .window_start_x = w.x,
+                .window_start_y = w.y,
+                .window_start_w = w.width,
+                .window_start_h = w.height,
+                .edges = edges orelse .{},
+            };
         }
     }
 
@@ -118,10 +129,11 @@ pub fn handleNewSeat(river_seat: *river.SeatV1) !void {
 
     // Setup key bindings
     seat.setKeyBinding(.space, .{ .mod4 = true }, event_handlers.handleOpenLauncher);
-    seat.setKeyBinding(.q, .{ .mod4 = true }, event_handlers.handleOpenLauncher);
+    seat.setKeyBinding(.q, .{ .mod4 = true }, event_handlers.handleWindowClose);
 
     // Setup mouse bindings
     seat.setPointerBinding(.left, .{ .mod4 = true }, event_handlers.handleMoveWindow);
+    seat.setPointerBinding(.right, .{ .mod4 = true }, event_handlers.handleResizeWindow);
 }
 
 pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Instance) void {

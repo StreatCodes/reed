@@ -13,14 +13,20 @@ pub const Window = struct {
     river_node: *river.NodeV1 = undefined,
     x: i32 = 200,
     y: i32 = 200,
-    width: u32 = 600,
-    height: u32 = 600,
+    width: i32 = 600,
+    height: i32 = 600,
 
     /// Should only be called in the manage or rendering sequence
     pub fn setPosition(window: *Window, x: i32, y: i32) void {
         window.x = x;
         window.y = y;
         window.river_node.setPosition(x, y);
+    }
+
+    pub fn setSize(window: *Window, width: i32, height: i32) void {
+        window.width = width;
+        window.height = height;
+        window.river_window.proposeDimensions(width, height);
     }
 };
 
@@ -76,8 +82,13 @@ pub fn windowListener(window_v1: *river.WindowV1, event: river.WindowV1.Event, _
         },
         .pointer_move_requested => {
             const seat = instance.seat orelse return;
-            std.debug.print("Move requested\n", .{});
-            seat.startMoveWindow();
+            //TODO we should pass the `window` here, will fix resizing outside window bounds
+            seat.startPointerOperation(.move, null);
+        },
+        .pointer_resize_requested => |request| {
+            const seat = instance.seat orelse return;
+            //TODO we should pass the `window` here, will fix resizing outside window bounds
+            seat.startPointerOperation(.resize, request.edges);
         },
         else => {},
     }
