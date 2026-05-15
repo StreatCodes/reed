@@ -59,18 +59,17 @@ pub const Seat = struct {
         allocator.destroy(seat);
     }
 
-    pub fn startPointerOperation(seat: *Seat, action: WindowAction, edges: ?river.WindowV1.Edges) void {
-        if (seat.hover) |w| {
-            seat.river_seat.opStartPointer();
-            seat.operation = .{
-                .action = action,
-                .window_start_x = w.x,
-                .window_start_y = w.y,
-                .window_start_w = w.width,
-                .window_start_h = w.height,
-                .edges = edges orelse .{},
-            };
-        }
+    // TODO fix this damn underscore, bloody import
+    pub fn startPointerOperation(seat: *Seat, _window: *Window, action: WindowAction, edges: ?river.WindowV1.Edges) void {
+        seat.river_seat.opStartPointer();
+        seat.operation = .{
+            .action = action,
+            .window_start_x = _window.x,
+            .window_start_y = _window.y,
+            .window_start_w = _window.width,
+            .window_start_h = _window.height,
+            .edges = edges orelse .{},
+        };
     }
 
     pub fn setKeyBinding(seat: *Seat, key: events.Key, modifiers: river.SeatV1.Modifiers, handler: event_handlers.KeyListener) void {

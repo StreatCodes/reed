@@ -82,13 +82,11 @@ pub fn windowListener(window_v1: *river.WindowV1, event: river.WindowV1.Event, _
         },
         .pointer_move_requested => {
             const seat = instance.seat orelse return;
-            //TODO we should pass the `window` here, will fix resizing outside window bounds
-            seat.startPointerOperation(.move, null);
+            seat.startPointerOperation(window, .move, null);
         },
         .pointer_resize_requested => |request| {
             const seat = instance.seat orelse return;
-            //TODO we should pass the `window` here, will fix resizing outside window bounds
-            seat.startPointerOperation(.resize, request.edges);
+            seat.startPointerOperation(window, .resize, request.edges);
         },
         else => {},
     }
