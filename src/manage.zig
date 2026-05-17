@@ -25,7 +25,9 @@ pub fn handleManageStart(window_manager: *river.WindowManagerV1) !void {
         }
 
         const seat = instance.seat orelse continue;
+        const window_id = window.river_window.getId();
         if (seat.operation) |*operation| {
+            if (operation.window_id != window_id) continue;
             switch (operation.action) {
                 .move => {
                     const new_x = operation.window_start_x + operation.dx;

@@ -25,6 +25,7 @@ const WindowAction = enum {
 const Operation = struct {
     action: WindowAction,
     released: bool = false,
+    window_id: u32,
     window_start_x: i32,
     window_start_y: i32,
     window_start_w: i32,
@@ -64,6 +65,7 @@ pub const Seat = struct {
         seat.river_seat.opStartPointer();
         seat.operation = .{
             .action = action,
+            .window_id = _window.river_window.getId(),
             .window_start_x = _window.x,
             .window_start_y = _window.y,
             .window_start_w = _window.width,
