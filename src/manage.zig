@@ -6,7 +6,6 @@ const river = wayland.client.river;
 /// The handler for River's Manage sequence. Any changes to window position,
 /// focus, size or z-index should happen here.
 pub fn handleManageStart(window_manager: *river.WindowManagerV1) !void {
-    std.debug.print("Manage start\n", .{});
     const instance = Instance.get();
 
     var focus_window_idx: ?usize = null;

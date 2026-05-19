@@ -72,6 +72,7 @@ pub const Seat = struct {
             .window_start_h = _window.height,
             .edges = edges orelse .{},
         };
+        _window.interacted = true;
     }
 
     pub fn setKeyBinding(seat: *Seat, key: events.Key, modifiers: river.SeatV1.Modifiers, handler: event_handlers.KeyListener) void {
