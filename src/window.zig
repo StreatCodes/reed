@@ -8,7 +8,6 @@ pub const Window = struct {
     title: []const u8 = "unknown",
     new: bool = true,
     interacted: bool = false,
-    hover: bool = false,
     river_window: *river.WindowV1 = undefined,
     river_node: *river.NodeV1 = undefined,
     x: i32 = 200,

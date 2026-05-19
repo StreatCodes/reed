@@ -38,7 +38,8 @@ const Operation = struct {
 pub const Seat = struct {
     river_seat: *river.SeatV1,
     bindings: std.ArrayList(Binding) = .empty,
-    hover: ?*Window = null,
+    /// The id of the window that is currently hovered
+    hover_id: ?u32 = null,
 
     operation: ?Operation = null,
 
@@ -151,14 +152,10 @@ pub fn seatListener(_: *river.SeatV1, event: river.SeatV1.Event, instance: *Inst
         },
         .pointer_enter => |pointer_event| {
             const river_window = pointer_event.window orelse return;
-            const result = window.getWindow(instance.windows.items, river_window.getId()) orelse {
-                std.debug.print("Pointer entered unknown window {}, ignoring\n", .{river_window.getId()});
-                return;
-            };
-            seat.hover = result.window;
+            seat.hover_id = river_window.getId();
         },
         .pointer_leave => {
-            seat.hover = null;
+            seat.hover_id = null;
         },
         .removed => {
             seat.deinit(instance.allocator);

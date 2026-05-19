@@ -2,6 +2,7 @@ const std = @import("std");
 const wayland = @import("wayland");
 const river = wayland.client.river;
 const Instance = @import("Instance.zig");
+const window = @import("window.zig");
 
 pub const KeyListener = *const fn (xkb_binding_v1: *river.XkbBindingV1, event: river.XkbBindingV1.Event, data: *Instance) void;
 pub const PointerListener = *const fn (pointer_binding_v1: *river.PointerBindingV1, event: river.PointerBindingV1.Event, data: *Instance) void;
@@ -28,16 +29,26 @@ pub fn handleWindowClose(_: *river.XkbBindingV1, event: river.XkbBindingV1.Event
 
 pub fn handleMoveWindow(_: *river.PointerBindingV1, event: river.PointerBindingV1.Event, instance: *Instance) void {
     const seat = instance.seat orelse return;
-    const window = seat.hover orelse return;
+    const window_id = seat.hover_id orelse return;
+    const result = window.getWindow(instance.windows.items, window_id) orelse {
+        std.debug.print("Couldn't find hovered window for move operation {}, ignoring\n", .{window_id});
+        return;
+    };
+
     if (event == .pressed) {
-        seat.startPointerOperation(window, .move, null);
+        seat.startPointerOperation(result.window, .move, null);
     }
 }
 
 pub fn handleResizeWindow(_: *river.PointerBindingV1, event: river.PointerBindingV1.Event, instance: *Instance) void {
     const seat = instance.seat orelse return;
-    const window = seat.hover orelse return;
+    const window_id = seat.hover_id orelse return;
+    const result = window.getWindow(instance.windows.items, window_id) orelse {
+        std.debug.print("Couldn't find hovered window for move operation {}, ignoring\n", .{window_id});
+        return;
+    };
+
     if (event == .pressed) {
-        seat.startPointerOperation(window, .resize, .{ .bottom = true, .right = true });
+        seat.startPointerOperation(result.window, .resize, .{ .bottom = true, .right = true });
     }
 }
