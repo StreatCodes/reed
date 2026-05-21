@@ -40,6 +40,9 @@ pub const Seat = struct {
     bindings: std.ArrayList(Binding) = .empty,
     /// The id of the window that is currently hovered
     hover_id: ?u32 = null,
+    /// Disable keybindings in the window manager so they're passed through
+    /// to the focused window
+    passthrough: bool = false,
 
     operation: ?Operation = null,
 
@@ -133,6 +136,8 @@ pub fn handleNewSeat(river_seat: *river.SeatV1) !void {
     // Setup key bindings
     seat.setKeyBinding(.space, .{ .mod4 = true }, event_handlers.handleOpenLauncher);
     seat.setKeyBinding(.q, .{ .mod4 = true }, event_handlers.handleWindowClose);
+    seat.setKeyBinding(.xf86_menu_kb, .{ .mod4 = true, .shift = true }, event_handlers.handleExit);
+    seat.setKeyBinding(.p, .{ .mod4 = true, .shift = true }, event_handlers.handlePassthrough);
 
     // Setup mouse bindings
     seat.setPointerBinding(.left, .{ .mod4 = true }, event_handlers.handleMoveWindow);

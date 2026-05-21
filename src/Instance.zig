@@ -49,16 +49,15 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !*Instance {
 }
 
 pub fn deinit(instance: *Instance) void {
-    //TODO iterate windows and destroy them?
     instance.windows.deinit(instance.allocator);
-    if (instance.layer_shell) |layer_shell| layer_shell.destroy();
-    if (instance.xkb_bindings) |xkb_bindings| xkb_bindings.destroy();
+    if (instance.seat) |seat| seat.deinit(instance.allocator);
     if (instance.window_manager) |window_manager| {
         window_manager.exitSession();
-        window_manager.destroy();
+        const result = instance.display.flush();
+        if (result != .SUCCESS) {
+            std.debug.print("Failed to flush exit event, exit status {d}\n", .{result});
+        }
     }
-    instance.registry.destroy();
-    instance.display.disconnect();
     instance.allocator.destroy(instance);
 }
 

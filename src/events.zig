@@ -13,6 +13,7 @@ pub const Key = enum(u32) {
     backspace = 0x0FF08,
     grave = 0x0060,
     tilde = 0x007E,
+    xf86_menu_kb = 0x1008FF65,
 
     @"0" = 0x0030,
     @"1" = 0x0031,
