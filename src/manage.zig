@@ -12,6 +12,7 @@ pub fn handleManageStart(window_manager: *river.WindowManagerV1) !void {
 
     for (instance.windows.items, 0..) |*window, index| {
         if (window.new) {
+            window.river_window.useSsd();
             window.river_window.proposeDimensions(600, 600);
             window.river_node.setPosition(window.x, window.y);
             focus_window_idx = index;
