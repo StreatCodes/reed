@@ -70,6 +70,7 @@ pub fn handleManageStart(window_manager: *river.WindowManagerV1) !void {
         }
     }
 
+    // Focus the new window if applicable
     if (focus_window_idx) |index| {
         focusWindow(instance, index);
     }
@@ -86,4 +87,23 @@ fn focusWindow(instance: *Instance, index: usize) void {
 
     window.river_node.placeTop();
     instance.seat.?.river_seat.focusWindow(window.river_window);
+
+    setBorderColors(window.river_window, true);
+
+    //Remove border colors from the previously focused window
+    if (instance.windows.items.len > 1) {
+        const old_window = instance.windows.items[instance.windows.items.len - 2];
+        setBorderColors(old_window.river_window, false);
+    }
+}
+
+/// Set the border colors for the given window. They can only be focused
+/// or unfocused. If focused the window borders will be slightly brighter.
+fn setBorderColors(river_window: *river.WindowV1, focused: bool) void {
+    const edges: river.WindowV1.Edges = .{ .left = true, .top = true, .right = true, .bottom = true };
+    if (focused) {
+        river_window.setBorders(edges, 3, 0x50FFFFFF, 0x5cFFFFFF, 0x68FFFFFF, 0xFFFFFFFF);
+    } else {
+        river_window.setBorders(edges, 3, 0x2bFFFFFF, 0x2fFFFFFF, 0x35FFFFFF, 0xFFFFFFFF);
+    }
 }
