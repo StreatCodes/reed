@@ -3,6 +3,7 @@ const wayland = @import("wayland");
 const input = @import("input.zig");
 const output = @import("output.zig");
 const manage = @import("manage.zig");
+const render = @import("render.zig");
 const window = @import("window.zig");
 const river = wayland.client.river;
 const wl = wayland.client.wl;
@@ -24,6 +25,7 @@ registry: *wl.Registry,
 window_manager: ?*river.WindowManagerV1 = null,
 xkb_bindings: ?*river.XkbBindingsV1 = null,
 layer_shell: ?*river.LayerShellV1 = null,
+compositor: ?*wl.Compositor = null,
 seat: ?*input.Seat = null,
 windows: std.ArrayList(Window),
 
@@ -113,6 +115,16 @@ fn registryListener(registry: *wl.Registry, event: wl.Registry.Event, _: ?*anyop
                 instance.layer_shell = layer_shell;
                 return;
             }
+
+            if (std.mem.eql(u8, interface_name, "wl_compositor")) {
+                std.debug.print("Registering {s} v{d}\n", .{ interface_name, global.version });
+                const compositor =
+                    registry.bind(global.name, wl.Compositor, 6) catch {
+                        @panic("Failed to register wl_compositor");
+                    };
+                instance.compositor = compositor;
+                return;
+            }
         },
         .global_remove => |global| {
             std.debug.print("Removing {}\n", .{global.name});
@@ -142,7 +154,11 @@ fn windowManagerListener(window_manager: *river.WindowManagerV1, event: river.Wi
                 std.debug.print("Error during window management sequence {}\n", .{err});
             };
         },
-        .render_start => window_manager.renderFinish(),
+        .render_start => {
+            render.handleRenderStart(window_manager) catch |err| {
+                std.debug.print("Error during window render sequence {}\n", .{err});
+            };
+        },
         .finished => {
             std.debug.print("Finished\n", .{});
             window_manager.destroy();

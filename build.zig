@@ -12,6 +12,7 @@ pub fn build(b: *std.Build) void {
     scanner.generate("river_window_manager_v1", 4);
     scanner.generate("river_xkb_bindings_v1", 2);
     scanner.generate("river_layer_shell_v1", 1);
+    scanner.generate("wl_compositor", 6);
 
     const wayland = b.createModule(.{
         .root_source_file = scanner.result,

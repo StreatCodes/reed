@@ -15,6 +15,11 @@ pub fn handleManageStart(window_manager: *river.WindowManagerV1) !void {
             window.river_window.useSsd();
             window.river_window.proposeDimensions(600, 600);
             window.river_node.setPosition(window.x, window.y);
+            if (window.decoration_surface) |surface| {
+                const decoration = try window.river_window.getDecorationAbove(surface);
+                decoration.setOffset(0, -30);
+                decoration.syncNextCommit();
+            }
             focus_window_idx = index;
             window.new = false;
         }

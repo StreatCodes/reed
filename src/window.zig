@@ -2,6 +2,7 @@ const std = @import("std");
 const Instance = @import("Instance.zig");
 const wayland = @import("wayland");
 const river = wayland.client.river;
+const wl = wayland.client.wl;
 
 pub const Window = struct {
     id: u32 = undefined,
@@ -10,6 +11,7 @@ pub const Window = struct {
     interacted: bool = false,
     river_window: *river.WindowV1 = undefined,
     river_node: *river.NodeV1 = undefined,
+    decoration_surface: ?*wl.Surface = null,
     x: i32 = 200,
     y: i32 = 200,
     width: i32 = 600,
@@ -74,6 +76,10 @@ pub fn windowListener(window_v1: *river.WindowV1, event: river.WindowV1.Event, _
             std.debug.print("Closing window\n", .{});
             _ = instance.windows.orderedRemove(window_index);
 
+            if (window.decoration_surface) |surface| {
+                surface.destroy();
+            }
+
             //Mark the last window as interacted so it gains focus.
             if (instance.windows.items.len > 0) {
                 instance.windows.items[instance.windows.items.len - 1].interacted = true;
@@ -86,6 +92,16 @@ pub fn windowListener(window_v1: *river.WindowV1, event: river.WindowV1.Event, _
         .pointer_resize_requested => |request| {
             const seat = instance.seat orelse return;
             seat.startPointerOperation(window, .resize, request.edges);
+        },
+        .decoration_hint => |request| {
+            const compositor = instance.compositor orelse return;
+            if (request.hint == .only_supports_csd) return;
+
+            const surface = compositor.createSurface() catch {
+                std.debug.print("Failed to create window decoration surface, falling back to CSD\n", .{});
+                return;
+            };
+            window.decoration_surface = surface;
         },
         else => {},
     }
